@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import gamma
 import math
 import matplotlib.pyplot as plt
 
@@ -24,24 +25,22 @@ def MHStep(lamb, data):
     # 次のlambdaをご提案いたします（分散1の正規分布）
     lamb_next = np.random.normal(lamb, 0.5)
 
-    # 尤度の計算
-    logL = logLikelihood(lamb, data)
-    logL_next = logLikelihood(lamb_next, data)
+    # 尤度*事前分布の計算
+    alpha_prior = 2
+    beta_prior = 2
+    L = np.exp(logLikelihood(lamb, data)) + gamma.pdf(lamb, alpha_prior, beta_prior)
+    L_next = np.exp(logLikelihood(lamb_next, data)) + gamma.pdf(lamb_next, alpha_prior, beta_prior)
 
     # lambの更新
-    # 事前分布が一様分布なので尤度比較するだけでいい
-    if logL <= logL_next:
+    if L <= L_next:
         lamb = lamb_next
     else:
         u = np.random.uniform(0,1)
-        if logL_next > np.log(u) + logL:
+        if L_next > u * L:
             lamb = lamb_next
     return lamb
 
 if __name__ == "__main__":
-    # 推定したいのはPoisson分布のパラメータlambda.
-    # MCMCでlambdaを推定する。lambdaの事前分布はめんどくさいので一様分布とする。
-
     # まずはデータを得る。コードの都合上、lambdaは明記されてしまっているが、poisson(10,15)の10が推定したいパラメータ。とりあえず15個データをとる。
     data = np.random.poisson(10,25)
     print(data)
@@ -56,11 +55,11 @@ if __name__ == "__main__":
         lamb = MHStep(lamb,data)
         MC.append(lamb)
     
-    # 描画
-    plt.plot(MC)
-    plt.savefig('Marcov_Chain.png')
-
-    # とりあえず最後の5000個の平均を推定値とする
-    sample = list(np.array_split(MC, 2))[1]
-    print(np.average(sample))
-    
+    # 解析的に求めた事後分布との比較
+    beta = 2+len(data)
+    x = np.linspace(0,50,1000)
+    y = gamma.pdf(x, 2+np.sum(data), scale=1./beta)
+    plt.plot(x,y,'r-',lw=2)
+    plt.hist(MC, density=True, bins=100)
+    plt.savefig('fig.png')
+    print(np.sum(data))
