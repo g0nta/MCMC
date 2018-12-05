@@ -22,16 +22,17 @@ def logLikelihood(lamb, data):
 
 # MH法の1ステップ
 def MHStep(lamb, data):
-    # 次のlambdaをご提案いたします（分散1の正規分布）
+    # Propose a next lambda by Normal dist
     lamb_next = np.random.normal(lamb, 0.5)
 
-    # 尤度*事前分布の計算
+    # Calc likelihood * prior dist
     alpha_prior = 2
     beta_prior = 2
-    L = np.exp(logLikelihood(lamb, data)) + gamma.pdf(lamb, alpha_prior, beta_prior)
-    L_next = np.exp(logLikelihood(lamb_next, data)) + gamma.pdf(lamb_next, alpha_prior, beta_prior)
+    gamma_prior = gamma(a=alpha_prior, scale=1./beta_prior) # 事前分布
+    L = np.exp(logLikelihood(lamb, data)) * gamma_prior.pdf(lamb)
+    L_next = np.exp(logLikelihood(lamb_next, data)) * gamma_prior.pdf(lamb_next)
 
-    # lambの更新
+    # Update lamb
     if L <= L_next:
         lamb = lamb_next
     else:
@@ -41,25 +42,27 @@ def MHStep(lamb, data):
     return lamb
 
 if __name__ == "__main__":
-    # まずはデータを得る。コードの都合上、lambdaは明記されてしまっているが、poisson(10,15)の10が推定したいパラメータ。とりあえず15個データをとる。
     data = np.random.poisson(10,25)
     print(data)
 
-    # lambdaの初期値
+    # Initialize lambda
     lamb = np.random.uniform(1, 100)
 
-    MC = []
-    MC.append(lamb)
-    # 何回遷移させればいいか全くわからんからとりあえずいっぱい
-    for i in range(10 ** 4):
+    hist = []
+    hist.append(lamb)
+
+    for i in range(10 ** 5):
         lamb = MHStep(lamb,data)
-        MC.append(lamb)
+        hist.append(lamb)
     
     # 解析的に求めた事後分布との比較
-    beta = 2+len(data)
+    gamma_posterior = gamma(a=2+np.sum(data), scale=1./(2+len(data)))
     x = np.linspace(0,50,1000)
-    y = gamma.pdf(x, 2+np.sum(data), scale=1./beta)
+    y = gamma_posterior.pdf(x)
     plt.plot(x,y,'r-',lw=2)
-    plt.hist(MC, density=True, bins=100)
+
+    sample = hist[1000:]
+    plt.hist(sample, density=True, bins=100)
     plt.savefig('fig.png')
     print(np.sum(data))
+    print(np.average(sample))
