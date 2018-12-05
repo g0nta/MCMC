@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.stats import gamma
-import math
 import matplotlib.pyplot as plt
 
 def logFractrial(x):
